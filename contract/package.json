@@ -1,0 +1,16 @@
+{
+  "name": "contract",
+  "version": "1.0.0",
+  "description": "This smart contract allows for the registration, renewal, transfer, and management of `.hxr` domains using Hedera HBAR. It includes functionality for setting DNS records, linking IPFS hashes, and managing wallet addresses associated with domains.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "@pythnetwork/pyth-sdk-solidity": "^3.1.0"
+  }
+}
