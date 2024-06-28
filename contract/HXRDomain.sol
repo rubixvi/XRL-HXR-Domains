@@ -80,6 +80,11 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         _;
     }
 
+    modifier notInitialized() {
+        require(admin == address(0), "HXRDomain: Already initialized");
+        _;
+    }
+
     modifier onlyOwner(string memory domain) {
         require(domains[domain].owner == msg.sender, "HXRDomain: Only the domain owner can perform this action");
         _;
