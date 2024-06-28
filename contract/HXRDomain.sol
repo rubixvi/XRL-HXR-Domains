@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
@@ -24,8 +25,8 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     uint256 public platformFeeUSD = 1; // Default platform fee in USD
     uint256 public constant GracePeriod = 30 days; // Grace period for domain renewal
     uint256 public constant OneYear = 365 days; // Duration for one year in seconds
-    IPyth public pyth = IPyth(0xA2aa501b19aff244D90cc15a4Cf739D2725B5729); // Default Pyth Network Oracle interface address
-    bytes32 public hbarUSDPriceID = 0x3728e591097635310e6341af53db8b7ee42da9b3a8d918f9463ce9cca886dfbd; // Default Pyth HBAR/USD price ID
+    IPyth public pyth; // Default Pyth Network Oracle interface
+    bytes32 public hbarUSDPriceID; // Default Pyth HBAR/USD price ID
 
     mapping(address => uint256) public lastAction; // Rate limiting mechanism
 
@@ -79,11 +80,6 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         _;
     }
 
-    modifier notInitialized() {
-        require(admin == address(0), "HXRDomain: Already initialized");
-        _;
-    }
-
     modifier onlyOwner(string memory domain) {
         require(domains[domain].owner == msg.sender, "HXRDomain: Only the domain owner can perform this action");
         _;
@@ -110,20 +106,20 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     }
 
     /**
-     * @dev Initializes the contract with key parameters
+     * @dev Constructor that initializes the contract with key parameters
      * @param pythAddress The address of the Pyth oracle
      * @param _hbarUSDPriceID The price ID for HBAR/USD
      * @param initialDomainPriceUSD The initial domain price in USD
      * @param initialRenewalPriceUSD The initial renewal price in USD
      * @param initialPlatformFeeUSD The initial platform fee in USD
      */
-    function initialize(
+    constructor(
         address pythAddress,
         bytes32 _hbarUSDPriceID,
         uint256 initialDomainPriceUSD,
         uint256 initialRenewalPriceUSD,
         uint256 initialPlatformFeeUSD
-    ) external onlyAdmin notInitialized {
+    ) {
         require(pythAddress != address(0), "HXRDomain: Invalid Pyth address");
         require(_hbarUSDPriceID != bytes32(0), "HXRDomain: Invalid price ID");
         require(initialDomainPriceUSD > 0, "HXRDomain: Domain price must be greater than zero");
@@ -140,7 +136,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         // Emit an event to notify users of contract initialization
         emit ContractInitialized(pythAddress, _hbarUSDPriceID, initialDomainPriceUSD, initialRenewalPriceUSD, initialPlatformFeeUSD);
     }
-
+    
     /**
      * @dev Authorize a platform for domain registration.
      * @param platform Address of the platform to be authorized
@@ -178,10 +174,24 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     }
 
     /**
+     * @dev Update the price data from Pyth Oracle.
+     * @param priceUpdate The encoded data to update the contract with the latest price
+     */
+    function updatePriceData(bytes[] calldata priceUpdate) public payable {
+        uint fee = pyth.getUpdateFee(priceUpdate);
+        pyth.updatePriceFeeds{value: fee}(priceUpdate);
+    }
+
+    /**
      * @dev Get the latest price of HBAR in USD from the Pyth Oracle.
+     * @param priceUpdate The encoded data to update the contract with the latest price
      * @return The latest price of HBAR in USD
      */
-    function getLatestPrice() public view returns (uint256) {
+    function getLatestPrice(bytes[] calldata priceUpdate) public payable returns (uint256) {
+        // Update price feeds before getting the latest price
+        uint fee = pyth.getUpdateFee(priceUpdate);
+        pyth.updatePriceFeeds{value: fee}(priceUpdate);
+
         try pyth.getPrice(hbarUSDPriceID) returns (PythStructs.Price memory price) {
             uint256 hbarPrice = (uint256(int256(price.price)) * (10 ** 8)) / (10 ** uint32(-1 * price.expo));
             return hbarPrice;
@@ -193,10 +203,11 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     /**
      * @dev Convert an amount in USD to HBAR based on the latest price.
      * @param amountInUSD The amount in USD to be converted
+     * @param priceUpdate The encoded data to update the contract with the latest price
      * @return The equivalent amount in HBAR
      */
-    function usdToHbar(uint256 amountInUSD) public view returns (uint256) {
-        uint256 hbarPrice = getLatestPrice();
+    function usdToHbar(uint256 amountInUSD, bytes[] calldata priceUpdate) public payable returns (uint256) {
+        uint256 hbarPrice = getLatestPrice(priceUpdate);
         uint256 amountInHbar = (amountInUSD * 10 ** 8) / hbarPrice;
         return amountInHbar;
     }
@@ -204,20 +215,21 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     /**
      * @dev Register a new domain.
      * @param domain The name of the domain to be registered
+     * @param priceUpdate The encoded data to update the contract with the latest price
      */
-    function registerDomain(string memory domain) external payable notBlacklisted(msg.sender) rateLimited(msg.sender) nonReentrant {
+    function registerDomain(string memory domain, bytes[] calldata priceUpdate) external payable notBlacklisted(msg.sender) rateLimited(msg.sender) nonReentrant {
         require(authorizedPlatforms[msg.sender], "HXRDomain: Platform not authorized");
         require(domains[domain].owner == address(0), "HXRDomain: Domain already registered");
         require(domain.validateDomain(), "HXRDomain: Invalid domain name");
 
-        uint256 requiredAmount = usdToHbar(domainPriceUSD + platformFeeUSD);
+        uint256 requiredAmount = usdToHbar(domainPriceUSD + platformFeeUSD, priceUpdate);
         require(msg.value >= requiredAmount, "HXRDomain: Insufficient funds");
 
         domains[domain].owner = msg.sender;
         domains[domain].expiry = block.timestamp + OneYear;
 
         // Transfer the fee to the admin
-        uint256 feeAmount = usdToHbar(platformFeeUSD);
+        uint256 feeAmount = usdToHbar(platformFeeUSD, priceUpdate);
         if (address(this).balance >= feeAmount) {
             payable(admin).transfer(feeAmount);
         } else {
@@ -232,11 +244,12 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     /**
      * @dev Renew an existing domain.
      * @param domain The name of the domain to be renewed
+     * @param priceUpdate The encoded data to update the contract with the latest price
      */
-    function renewDomain(string memory domain) external payable onlyOwner(domain) notBlacklisted(msg.sender) domainNotSuspended(domain) rateLimited(msg.sender) nonReentrant {
+    function renewDomain(string memory domain, bytes[] calldata priceUpdate) external payable onlyOwner(domain) notBlacklisted(msg.sender) domainNotSuspended(domain) rateLimited(msg.sender) nonReentrant {
         require(domain.validateDomain(), "HXRDomain: Invalid domain name");
 
-        uint256 requiredAmount = usdToHbar(renewalPriceUSD + platformFeeUSD);
+        uint256 requiredAmount = usdToHbar(renewalPriceUSD + platformFeeUSD, priceUpdate);
         require(msg.value >= requiredAmount, "HXRDomain: Insufficient funds");
 
         require(
@@ -254,7 +267,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         }
 
         // Transfer the fee to the admin
-        uint256 feeAmount = usdToHbar(platformFeeUSD);
+        uint256 feeAmount = usdToHbar(platformFeeUSD, priceUpdate);
         if (address(this).balance >= feeAmount) {
             payable(admin).transfer(feeAmount);
         } else {
