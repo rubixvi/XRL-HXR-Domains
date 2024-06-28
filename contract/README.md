@@ -4,8 +4,6 @@
 
 The `HXRDomain` smart contract is designed to manage `.hxr` domains on the Hedera network. This contract supports the registration, renewal, transfer, and management of domains. It also includes functionalities to set DNS records, associate wallet addresses, and link IPFS hashes to domains.
 
-**This Contract is written in EVM and must be adapted to Hedera Hashgraph Consensus Service (HCS)**
-
 ## Features
 
 - **Domain Registration**: Users can register `.hxr` domains.
