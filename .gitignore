@@ -1,0 +1,6 @@
+.env
+node_modules/
+client/
+admin/
+server/
+contract/node_modules/
