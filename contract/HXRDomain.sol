@@ -182,9 +182,12 @@ contract HXRDomain is ReentrancyGuard, Initializable {
      * @return The latest price of HBAR in USD
      */
     function getLatestPrice() public view returns (uint256) {
-        PythStructs.Price memory price = pyth.getPrice(hbarUSDPriceID);
-        uint256 hbarPrice = (uint256(int256(price.price)) * (10 ** 8)) / (10 ** uint32(-1 * price.expo));
-        return hbarPrice;
+        try pyth.getPrice(hbarUSDPriceID) returns (PythStructs.Price memory price) {
+            uint256 hbarPrice = (uint256(int256(price.price)) * (10 ** 8)) / (10 ** uint32(-1 * price.expo));
+            return hbarPrice;
+        } catch {
+            revert("HXRDomain: Failed to get price from Pyth Oracle");
+        }
     }
 
     /**
