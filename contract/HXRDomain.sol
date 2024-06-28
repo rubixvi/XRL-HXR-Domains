@@ -22,8 +22,8 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     uint256 public domainPriceUSD; // Price for domain registration in USD
     uint256 public renewalPriceUSD; // Price for domain renewal in USD
     uint256 public platformFeeUSD; // Platform fee in USD
-    uint256 public constant GRACE_PERIOD = 30 days; // Grace period for domain renewal
-    uint256 public constant ONE_YEAR = 365 days; // Duration for one year in seconds
+    uint256 public constant Grace_Period = 30 days; // Grace period for domain renewal
+    uint256 public constant One_Year = 365 days; // Duration for one year in seconds
     IPyth public pyth; // Pyth Network Oracle interface
     bytes32 public hbarUSDPriceID; // Pyth HBAR/USD price ID
 
@@ -76,6 +76,11 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     // Modifiers for function access control
     modifier onlyAdmin() {
         require(msg.sender == admin, "HXRDomain: Only admin can perform this action");
+        _;
+    }
+
+    modifier notInitialized() {
+        require(admin == address(0), "HXRDomain: Already initialized");
         _;
     }
 
@@ -206,7 +211,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         require(msg.value >= requiredAmount, "HXRDomain: Insufficient funds");
 
         domains[domain].owner = msg.sender;
-        domains[domain].expiry = block.timestamp + ONE_YEAR;
+        domains[domain].expiry = block.timestamp + One_Year;
 
         // Transfer the fee to the admin
         uint256 feeAmount = usdToHbar(platformFeeUSD);
@@ -233,16 +238,16 @@ contract HXRDomain is ReentrancyGuard, Initializable {
 
         require(
             domains[domain].expiry > block.timestamp || 
-            (domains[domain].expiry + GRACE_PERIOD > block.timestamp),
+            (domains[domain].expiry + Grace_Period > block.timestamp),
             "HXRDomain: Domain expired and grace period over"
         );
 
         if (domains[domain].expiry < block.timestamp) {
             // Domain is within grace period
-            domains[domain].expiry = block.timestamp + ONE_YEAR;
+            domains[domain].expiry = block.timestamp + One_Year;
         } else {
             // Domain is not expired
-            domains[domain].expiry += ONE_YEAR;
+            domains[domain].expiry += One_Year;
         }
 
         // Transfer the fee to the admin
@@ -265,7 +270,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     function adminRenewDomain(string memory domain) external onlyAdmin nonReentrant {
         require(domain.validateDomain(), "HXRDomain: Invalid domain name");
         
-        domains[domain].expiry += ONE_YEAR;
+        domains[domain].expiry += One_Year;
 
         emit DomainRenewed(domain, domains[domain].expiry);
     }
