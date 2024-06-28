@@ -19,13 +19,13 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     using DomainNameLibrary for string;
 
     address public admin; // Address of the contract admin
-    uint256 public domainPriceUSD; // Price for domain registration in USD
-    uint256 public renewalPriceUSD; // Price for domain renewal in USD
-    uint256 public platformFeeUSD; // Platform fee in USD
-    uint256 public constant Grace_Period = 30 days; // Grace period for domain renewal
-    uint256 public constant One_Year = 365 days; // Duration for one year in seconds
-    IPyth public pyth; // Pyth Network Oracle interface
-    bytes32 public hbarUSDPriceID; // Pyth HBAR/USD price ID
+    uint256 public domainPriceUSD = 15; // Default price for domain registration in USD
+    uint256 public renewalPriceUSD = 15; // Default price for domain renewal in USD
+    uint256 public platformFeeUSD = 1; // Default platform fee in USD
+    uint256 public constant GracePeriod = 30 days; // Grace period for domain renewal
+    uint256 public constant OneYear = 365 days; // Duration for one year in seconds
+    IPyth public pyth = IPyth(0xA2aa501b19aff244D90cc15a4Cf739D2725B5729); // Default Pyth Network Oracle interface address
+    bytes32 public hbarUSDPriceID = 0x3728e591097635310e6341af53db8b7ee42da9b3a8d918f9463ce9cca886dfbd; // Default Pyth HBAR/USD price ID
 
     mapping(address => uint256) public lastAction; // Rate limiting mechanism
 
@@ -123,7 +123,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         uint256 initialDomainPriceUSD,
         uint256 initialRenewalPriceUSD,
         uint256 initialPlatformFeeUSD
-    ) public initializer {
+    ) external onlyAdmin notInitialized {
         require(pythAddress != address(0), "HXRDomain: Invalid Pyth address");
         require(_hbarUSDPriceID != bytes32(0), "HXRDomain: Invalid price ID");
         require(initialDomainPriceUSD > 0, "HXRDomain: Domain price must be greater than zero");
@@ -211,7 +211,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
         require(msg.value >= requiredAmount, "HXRDomain: Insufficient funds");
 
         domains[domain].owner = msg.sender;
-        domains[domain].expiry = block.timestamp + One_Year;
+        domains[domain].expiry = block.timestamp + OneYear;
 
         // Transfer the fee to the admin
         uint256 feeAmount = usdToHbar(platformFeeUSD);
@@ -238,16 +238,16 @@ contract HXRDomain is ReentrancyGuard, Initializable {
 
         require(
             domains[domain].expiry > block.timestamp || 
-            (domains[domain].expiry + Grace_Period > block.timestamp),
+            (domains[domain].expiry + GracePeriod > block.timestamp),
             "HXRDomain: Domain expired and grace period over"
         );
 
         if (domains[domain].expiry < block.timestamp) {
             // Domain is within grace period
-            domains[domain].expiry = block.timestamp + One_Year;
+            domains[domain].expiry = block.timestamp + OneYear;
         } else {
             // Domain is not expired
-            domains[domain].expiry += One_Year;
+            domains[domain].expiry += OneYear;
         }
 
         // Transfer the fee to the admin
@@ -270,7 +270,7 @@ contract HXRDomain is ReentrancyGuard, Initializable {
     function adminRenewDomain(string memory domain) external onlyAdmin nonReentrant {
         require(domain.validateDomain(), "HXRDomain: Invalid domain name");
         
-        domains[domain].expiry += One_Year;
+        domains[domain].expiry += OneYear;
 
         emit DomainRenewed(domain, domains[domain].expiry);
     }
