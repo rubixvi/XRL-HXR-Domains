@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `HXRDomain` smart contract is designed to manage `.hxr` domains on the Hedera network. This contract supports the registration, renewal, transfer, and management of domains. It also includes functionalities to set DNS records, associate wallet addresses, and link IPFS hashes to domains.
+The `HXRDomain` smart contract is designed to manage `.hxr` domains on the Hedera network. This contract supports domain registration, renewal, transfer and management. It also includes functionalities to set DNS records, associate wallet addresses and link IPFS hashes to domains.
 
 ## Features
 
@@ -28,11 +28,11 @@ The `HXRDomain` smart contract is designed to manage `.hxr` domains on the Heder
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/rubixvi/hxr-smart-contract
+   git clone https://github.com/rubixvi/HXR/
    ```
 2. Navigate to the project directory:
    ```bash
-   cd hxr-smart-contract
+   cd contract
    ```
 3. Install the dependencies:
    ```bash
