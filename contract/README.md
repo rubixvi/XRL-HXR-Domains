@@ -44,7 +44,7 @@ The `HXRDomain` smart contract is designed to manage `.hxr` domains on the Heder
 ### Deployment
 
 - **pythAddress:** The address of the Pyth oracle (Hedera: 0xA2aa501b19aff244D90cc15a4Cf739D2725B5729)
-- **_hbarUSDPriceID** The price ID for HBAR/USD (HBAR/USD: 4iKbNj2mt8LuegYa4LodGSMicneUfoM8x3tRhivECviQ)
+- **_hbarUSDPriceID** The price ID for HBAR/USD (HBAR/USD: 0x3728e591097635310e6341af53db8b7ee42da9b3a8d918f9463ce9cca886dfbd)
 - **initialDomainPriceUSD** The initial domain price in USD
 - **initialRenewalPriceUSD** The initial renewal price in USD
 - **initialPlatformFeeUSD** The initial platform fee in USD
