@@ -4,3 +4,5 @@ client/
 admin/
 server/
 contract/node_modules/
+admin/node_modules/
+client/node_modules/
